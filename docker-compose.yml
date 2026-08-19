@@ -1,0 +1,117 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-learnos}
+      POSTGRES_USER: ${POSTGRES_USER:-learnos}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-learnos}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-learnos} -d ${POSTGRES_DB:-learnos}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-learnos}:${POSTGRES_PASSWORD:-learnos}@db:5432/${POSTGRES_DB:-learnos}
+    ports:
+      - "8000:8000"
+    volumes:
+      - knowledge_media:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build: ./backend
+    restart: unless-stopped
+    entrypoint: []
+    command: celery -A config worker --loglevel=info --concurrency=2
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-learnos}:${POSTGRES_PASSWORD:-learnos}@db:5432/${POSTGRES_DB:-learnos}
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - knowledge_media:/app/media
+    depends_on:
+      backend:
+        condition: service_started
+      redis:
+        condition: service_healthy
+
+  execution-controller:
+    build: ./services/execution-controller
+    restart: unless-stopped
+    environment:
+      EXECUTION_CONTROLLER_SECRET: ${EXECUTION_CONTROLLER_SECRET:-}
+      SANDBOX_BACKEND: ${SANDBOX_BACKEND:-docker}
+      SANDBOX_PROVIDER_URL: ${SANDBOX_PROVIDER_URL:-}
+      SANDBOX_PROVIDER_TOKEN: ${SANDBOX_PROVIDER_TOKEN:-}
+      PYTHON_RUNNER_IMAGE: ${PYTHON_RUNNER_IMAGE:-python:3.12-alpine}
+      JAVASCRIPT_RUNNER_IMAGE: ${JAVASCRIPT_RUNNER_IMAGE:-node:22-alpine}
+      TYPESCRIPT_RUNNER_IMAGE: ${TYPESCRIPT_RUNNER_IMAGE:-denoland/deno:alpine}
+      JAVA_RUNNER_IMAGE: ${JAVA_RUNNER_IMAGE:-eclipse-temurin:21-jdk-alpine}
+      C_RUNNER_IMAGE: ${C_RUNNER_IMAGE:-gcc:14}
+      CPP_RUNNER_IMAGE: ${CPP_RUNNER_IMAGE:-gcc:14}
+      GO_RUNNER_IMAGE: ${GO_RUNNER_IMAGE:-golang:1.24-alpine}
+      RUST_RUNNER_IMAGE: ${RUST_RUNNER_IMAGE:-rust:alpine}
+      PHP_RUNNER_IMAGE: ${PHP_RUNNER_IMAGE:-php:8.4-cli-alpine}
+      RUBY_RUNNER_IMAGE: ${RUBY_RUNNER_IMAGE:-ruby:alpine}
+      KOTLIN_RUNNER_IMAGE: ${KOTLIN_RUNNER_IMAGE:-learnos-kotlin-runner:2.1.20}
+      SQL_RUNNER_IMAGE: ${SQL_RUNNER_IMAGE:-python:3.12-alpine}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    group_add:
+      - "${DOCKER_GID:-0}"
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health/ready', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+
+  kotlin-runner-image:
+    profiles: ["runner-images"]
+    image: ${KOTLIN_RUNNER_IMAGE:-learnos-kotlin-runner:2.1.20}
+    build:
+      context: ./services/execution-controller/runners/kotlin
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000/api/v1}
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  redis_data:
+  knowledge_media:
