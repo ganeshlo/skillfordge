@@ -1,5 +1,9 @@
 # Code workspace workflow
 
+This document covers the coding subsystem. For the complete account-to-deployment
+journey, see [LearnOS end-to-end workflow](PROJECT_WORKFLOW.md). For discussion
+prompts and model answers, see [LearnOS interview questions](INTERVIEW_QUESTIONS.md).
+
 ## User workflow
 
 1. Open **Code workspace** and create a project from a language template.

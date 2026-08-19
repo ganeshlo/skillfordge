@@ -1,0 +1,7 @@
+[tool.ruff]
+target-version = "py312"
+
+[tool.ruff.lint]
+# Keep the CI policy explicit. Ruff releases before 1.0 may change their default
+# rule set, so relying on implicit defaults makes local and CI results diverge.
+select = ["E4", "E7", "E9", "F"]

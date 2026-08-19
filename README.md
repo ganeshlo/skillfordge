@@ -18,6 +18,12 @@ AI provider configuration is reserved for the AI module and no provider call is 
 
 Payment and subscription setup is documented in [`docs/PAYMENT_SUBSCRIPTION.md`](docs/PAYMENT_SUBSCRIPTION.md).
 
+The complete product and engineering flow is documented in
+[`docs/PROJECT_WORKFLOW.md`](docs/PROJECT_WORKFLOW.md). Use
+[`docs/INTERVIEW_QUESTIONS.md`](docs/INTERVIEW_QUESTIONS.md) to prepare for
+architecture, backend, frontend, security, billing, and DevOps interviews about
+the project.
+
 ### Secure code execution
 
 LearnOS never runs server-executed source in Django, Celery, React, or the controller process. Python, JavaScript, TypeScript, Java, C, C++, Go, Rust, PHP, Ruby, Kotlin, and SQL run in short-lived language containers. HTML, CSS, and React use a browser preview iframe without application-origin access. To enable Run/Stop, set these values in `.env`:
